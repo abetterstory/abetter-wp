@@ -21,16 +21,25 @@ class Middleware {
 
 			// Error
 			if (!empty($data['error']) && $data['error'] > 400) {
-				@http_response_code($data['error']);
+				$response->setStatusCode($data['error']);
 			}
 
-			// Expire
+			// Cache
 			if (method_exists($response,'header')) {
-				$expire = (!empty($data['expire'])) ? ((is_numeric($data['expire'])) ? $data['expire'] : strtotime($data['expire'],0)) : 2628000;
-				$response->header('Pragma', 'public');
-				$response->header('Cache-Control', 'public, max-age='.$expire);
-				$response->header('Expires', gmdate('D, d M Y H:i:s \G\M\T', time() + $expire));
-				$response->setEtag(md5($response->content()));
+				$expire = (!empty($data['error'])) ? 300 : 2628000; // Default 1 month
+				if (isset($data['expire']) && $data['expire'] !== '') {
+					$expire = (is_numeric($data['expire'])) ? (int) $data['expire'] : strtotime($data['expire'],0);
+				}
+				if ($expire > 0) {
+					$response->header('Pragma', 'public');
+					$response->header('Cache-Control', 'public, max-age='.$expire);
+					$response->header('Expires', gmdate('D, d M Y H:i:s \G\M\T', time() + $expire));
+					$response->setEtag(md5($response->content()));
+				} else {
+					$response->header('Pragma', 'no-cache');
+					$response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+					$response->header('Expires', '0');
+				}
 			}
 
 		}
