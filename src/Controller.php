@@ -40,6 +40,9 @@ class Controller extends BaseController {
 		// Language
 		$this->l10n = L10n::parseGlobal();
 		$this->post = L10n::parsePost($this->post);
+		if ($switch = L10n::switchCurrent($this->post)) {
+			$this->post = L10n::parsePost($switch,TRUE);
+		}
 		// Template
 		$this->template = $this->getPostTemplate($this->post);
 		$this->suggestions = $this->getPostTemplateSuggestions($this->post,$this->template);
@@ -83,17 +86,19 @@ class Controller extends BaseController {
 	public function getPreview($path,$uri) {
 		if ($path !== '/' || !preg_match('/preview/',$uri)) return NULL;
 		$this->preview = (preg_match('/(page_id|p)(\=|\/)([0-9]+)/',$uri,$match)) ? (int) $match[3] : '';
-		return Post::where('id', $this->preview)->first();
+		return Post::where('ID', $this->preview)->with('taxonomies')->first();
 	}
 
 	public function getPost($path) {
 		$this->guid = 'route:'.$path;
-		return Post::where('guid', $this->guid)->first();
+		return Post::where('guid', $this->guid)->with('taxonomies')->first();
 	}
 
 	public function getError() {
 		$this->error = 404;
-		return Post::where('post_name', 'like', "{$this->error}%")->first();
+		$post = Post::where('post_name', 'like', "{$this->error}%")->with('taxonomies')->first();
+		$post->error = $this->error;
+		return $post;
 	}
 
 	// ---
@@ -105,7 +110,7 @@ class Controller extends BaseController {
 	public function postIsPosts($post) {
 		return (($id = Option::get('page_for_posts')) && $post->ID == $id) ? TRUE : FALSE;
 	}
-	
+
 	// ---
 
 	public function getPostTemplate($post) {

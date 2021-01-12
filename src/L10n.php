@@ -30,26 +30,43 @@ class L10n extends Corcel {
 		return self::$global;
 	}
 
-	public static function parsePost($post) {
-		if (isset(self::$post)) return self::$post;
+	public static function parsePost($post,$reset=FALSE) {
+		if (isset(self::$post) && !$reset) return self::$post;
 		self::$post = $post;
-		$trans = ($t = $post->taxonomies()->where('taxonomy','post_translations')->first()) ? (array) unserialize($t->description) : [];
 		$l10n = (object) [];
 		$l10n->localization = self::current('slug');
 		$l10n->language = self::current('language');
 		$l10n->master = NULL;
+		$l10n->localizations = [];
+		$trans = []; foreach ($post->taxonomies AS $term) {
+			if ($term->taxonomy == 'post_translations') {
+				$trans = unserialize($term->description);
+			}
+		}
 		foreach ($trans AS $key => $id) {
+			$l10n->localizations[$key] = $id;
 			if ($id == $post->ID) $l10n->localization = $key;
 			if ($id != $post->ID && $key == self::master('slug')) {
 				$l10n->master = self::localizations($key);
 				$l10n->master->ID = $id;
-				$l10n->master->post = Corcel::where('ID', $id)->first();
+				$l10n->master->post = Corcel::where('ID', $id)->with('taxonomies')->first();
 			}
 		}
 		$l10n->language = self::localizations($l10n->localization)->language ?? '';
 		$l10n->locale = self::localizations($l10n->localization)->locale ?? '';
 		self::$post->l10n = $l10n;
 		return self::$post;
+	}
+
+	public static function switchCurrent($post) {
+		if (empty($post->l10n->localization)) return NULL;
+		if (($slug = self::current('slug')) && $post->l10n->localization != $slug) {
+			$id = $post->l10n->localizations[$slug] ?? NULL;
+			if ($id && ($switch = Corcel::where('ID', $id)->with('taxonomies')->first())) {
+				return $switch;
+			}
+		}
+		return NULL;
 	}
 
 	// ---
