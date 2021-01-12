@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\View;
 use Closure;
 use Corcel\Model\Post;
 use Corcel\Model\Option;
+use ABetter\WP\Poly;
 
 class Controller extends BaseController {
 
@@ -36,6 +37,9 @@ class Controller extends BaseController {
 				}
 			}
 		}
+		// Language
+		$this->l10n = L10n::parseGlobal();
+		$this->post = L10n::parsePost($this->post);
 		// Template
 		$this->template = $this->getPostTemplate($this->post);
 		$this->suggestions = $this->getPostTemplateSuggestions($this->post,$this->template);
@@ -48,12 +52,13 @@ class Controller extends BaseController {
 		}
 		// Response
 		if (!empty($this->view)) {
-			return view($suggestion)->with([
+			return view($this->view)->with([
 				'post' => $this->post,
+				'l10n' => $this->l10n,
 				'template' => $suggestion,
-				'error' => $this->error ?? NULL,
-				'expire' => $this->post->meta->settings_expire ?? NULL,
-				'redirect' => $this->post->meta->settings_redirect ?? NULL,
+				'error' => $this->error ?? '',
+				'expire' => $this->post->meta->settings_expire ?? '',
+				'redirect' => $this->post->meta->settings_redirect ?? '',
 			]);
 		}
 		// Fail
@@ -77,7 +82,7 @@ class Controller extends BaseController {
 
 	public function getPreview($path,$uri) {
 		if ($path !== '/' || !preg_match('/preview/',$uri)) return NULL;
-		$this->preview = (preg_match('/(page_id|p)(\=|\/)([0-9]+)/',$uri,$match)) ? (int) $match[3] : NULL;
+		$this->preview = (preg_match('/(page_id|p)(\=|\/)([0-9]+)/',$uri,$match)) ? (int) $match[3] : '';
 		return Post::where('id', $this->preview)->first();
 	}
 
@@ -91,6 +96,16 @@ class Controller extends BaseController {
 		return Post::where('post_name', 'like', "{$this->error}%")->first();
 	}
 
+	// ---
+
+	public function postIsFront($post) {
+		return (($id = Option::get('page_on_front')) && $post->ID == $id) ? TRUE : FALSE;
+	}
+
+	public function postIsPosts($post) {
+		return (($id = Option::get('page_for_posts')) && $post->ID == $id) ? TRUE : FALSE;
+	}
+	
 	// ---
 
 	public function getPostTemplate($post) {
