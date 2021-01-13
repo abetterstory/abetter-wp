@@ -24,7 +24,8 @@ class Controller extends BaseController {
 		$this->theme = env('WP_THEME') ?: '';
 		// Locations
 		if ($this->theme) {
-			$this->prependLocation(base_path().'/resources/views/'.$this->theme);
+			//$this->prependLocation(base_path().'/resources/views/'.$this->theme);
+			view()->addLocation(base_path().'/resources/views/'.$this->theme);
 			view()->addLocation(base_path().'/vendor/abetter/wp/views/'.$this->theme);
 		}
 		view()->addLocation(base_path().'/vendor/abetter/wp/views/default');
@@ -154,6 +155,7 @@ class Controller extends BaseController {
 	// ---
 
 	public function prependLocation($path) {
+		// Breaks Telescope
         Config::set('view.paths', array_merge([$path], Config::get('view.paths')));
         View::setFinder(app()['view.finder']);
     }
