@@ -24,7 +24,8 @@
 	"extra": {
         "laravel": {
             "providers": [
-	            "ABetter\\WP\\ServiceProvider"
+	            "ABetter\\WP\\ServiceProvider",
+				"ABetter\\WP\\BladeServiceProvider"
             ]
         }
     }
