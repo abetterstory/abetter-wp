@@ -6,8 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\View;
 use Closure;
-use Corcel\Model\Option;
-use ABetter\WP\Post;
+use Corcel\Model\Post AS CorcelPost;
+use Corcel\Model\Option AS CorcelOption;
 use ABetter\WP\L10n;
 
 use Illuminate\Routing\Controller as BaseController;
@@ -89,21 +89,21 @@ class Controller extends BaseController {
 	public function getPreview($path,$uri) {
 		if ($path !== '/' || !preg_match('/preview/',$uri)) return NULL;
 		$this->preview = (preg_match('/(page_id|p)(\=|\/)([0-9]+)/',$uri,$match)) ? (int) $match[3] : '';
-		return Post::getPost('ID',$this->preview);
+		return L10n::getPost('ID',$this->preview);
 	}
 
 	public function getPost($path) {
 		$this->guid = 'route:'.$path;
-		return Post::getPost('guid',$this->guid);
+		return L10n::getPost('guid',$this->guid);
 	}
 
 	public function getPostById($id) {
-		return Post::getPost('ID',$id);
+		return L10n::getPost('ID',$id);
 	}
 
 	public function getError() {
 		$this->error = 404;
-		$post = Post::getPost('post_name',"{$this->error}%",'like');
+		$post = L10n::getPost('post_name',"{$this->error}%",'like');
 		$post->error = $this->error;
 		return $post;
 	}
@@ -111,11 +111,11 @@ class Controller extends BaseController {
 	// ---
 
 	public function postFrontIds() {
-		return L10n::getPostTranslationsById(Option::get('page_on_front'));
+		return L10n::getPostTranslationsById(CorcelOption::get('page_on_front'));
 	}
 
 	public function postPostsIds() {
-		return L10n::getPostTranslationsById(Option::get('page_for_posts'));
+		return L10n::getPostTranslationsById(CorcelOption::get('page_for_posts'));
 	}
 
 	public function postIsFront($post) {

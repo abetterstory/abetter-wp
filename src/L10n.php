@@ -2,7 +2,8 @@
 
 namespace ABetter\WP;
 
-use Corcel\Model\Option;
+use Corcel\Model\Post AS CorcelPost;
+use Corcel\Model\Option AS CorcelOption;
 use Illuminate\Support\Facades\DB;
 
 use Illuminate\Database\Eloquent\Model AS BaseModel;
@@ -12,6 +13,7 @@ class L10n extends BaseModel {
 	public static $global;
 	public static $plugin;
 
+	public static $default;
 	public static $master;
 	public static $current;
 	public static $languages;
@@ -34,7 +36,7 @@ class L10n extends BaseModel {
 	public static function plugin() {
 		if (isset(self::$plugin)) return self::$plugin;
 		self::$plugin = FALSE;
-		$plugins = implode(',',Option::get('active_plugins'));
+		$plugins = implode(',',CorcelOption::get('active_plugins'));
 		if (preg_match('/polylang/',$plugins)) {
 			self::$plugin = 'polylang';
 		} else if (preg_match('/sitepress/',$plugins)) {
@@ -45,11 +47,19 @@ class L10n extends BaseModel {
 
 	// ---
 
+	public static function default() {
+		if (isset(self::$default)) return self::$default;
+		self::$default = CorcelOption::get('polylang')['default_lang'];
+		if (!self::$default) self::$default = CorcelOption::get('WPLANG');
+		if (!self::$default) self::$default = 'en';
+		return self::$default;
+	}
+
 	public static function master($key=NULL) {
 		if (isset(self::$master)) return ($key) ? self::$master->{$key} ?? '' : self::$master;
-		$option = Option::get('polylang')['default_lang'] ?? '';
+		$default = self::default();
 		foreach (self::languages() AS $language) {
-			if ($language->slug == $option) self::$master = $language;
+			if ($language->slug == $default) self::$master = $language;
 		}
 		return ($key) ? self::$master->{$key} ?? '' : self::$master;
 	}
@@ -145,6 +155,16 @@ class L10n extends BaseModel {
 		$l10n['is_master'] = ($l10n['master_id'] == $l10n['current_id']);
 		self::$cached[$id]['l10n'] = $l10n;
 		return $l10n;
+	}
+
+	// ---
+
+	public static function getPost($key,$val,$operator='=') {
+		$post = CorcelPost::where($key,$operator,$val)
+			->with('meta')
+			->first();
+		$post->l10n = self::getPostL10nById($post->ID);
+		return $post;
 	}
 
 }
