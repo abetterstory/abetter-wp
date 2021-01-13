@@ -76,7 +76,7 @@ class Controller extends BaseController {
 
 	public function serviceRobots() {
 		$this->service = 'robots';
-		return response()->view('robots')->header('Content-Type','text/html');
+		return response()->view('robots')->header('Content-Type','text/plain');
 	}
 
 	public function serviceSitemap() {

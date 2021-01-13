@@ -13,6 +13,8 @@ class L10n extends BaseModel {
 	public static $global;
 	public static $plugin;
 
+	public static $index;
+
 	public static $default;
 	public static $master;
 	public static $current;
@@ -186,6 +188,44 @@ class L10n extends BaseModel {
 			$post->l10n = self::getPostL10nById($post->ID);
 		}
 		return $post;
+	}
+
+	// ---
+
+	public static function translationsIndex($key=NULL) {
+		// Cached
+		if (isset(self::$index)) return ($key) ? self::$index[$key] ?? '' : self::$index;
+		$master = self::master('slug');
+		$languages = self::languages();
+		$translations = [];
+		self::$index = [];
+		foreach ($languages AS $language => $data) {
+			if ($language == $master) continue;
+			self::$index[$language] = self::languageIndex($language);
+			$translations = array_merge($translations,self::$index[$language]);
+		}
+		self::$index[$master] = ($result = DB::connection('wordpress')
+			->table('posts')
+			->select('ID')
+			->where('post_status','publish')
+			->where('guid','like','route:%')
+			->whereNotIn('ID',$translations)
+			->get()
+			->pluck('ID')) ? reset($result) : [];
+		return ($key) ? self::$index[$key] ?? '' : self::$index;
+	}
+
+	public static function languageIndex($slug=NULL) {
+		return ($result = DB::connection('wordpress')
+			->table('posts')
+			->select('ID')
+			->whereRaw("post_status = 'publish' AND ID IN (SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(description,'\"{$slug}\";i:',-1),';',1) FROM wp_term_taxonomy WHERE taxonomy = 'post_translations')")
+			->get()
+			->pluck('ID')) ? reset($result) : [];
+	}
+
+	public static function masterIndex() {
+		return self::translationsIndex(self::master('slug'));
 	}
 
 }
