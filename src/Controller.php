@@ -43,8 +43,8 @@ class Controller extends BaseController {
 		}
 		// Localization
 		$this->l10n = L10n::parseGlobal();
-		if ($switch = L10n::switchPostTranslation($this->post)) {
-			$this->post = ($p = $this->getPostById($switch)) ? $p : $this->post;
+		if ($switch = L10n::switchPostTranslationById($this->post->ID)) {
+			$this->post = L10n::getPost('ID',$switch);
 		}
 		// Template
 		$this->template = $this->getPostTemplate($this->post);

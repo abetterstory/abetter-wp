@@ -23,17 +23,21 @@ class L10n extends BaseModel {
 	// ---
 
 	public static function parseGlobal() {
+		// Cached
 		if (isset(self::$global)) return self::$global;
 		self::$global = ($plugin = self::plugin()) ? (object) [
 			'plugin' => $plugin,
+			'languages' => self::languages(),
+			'requested' => self::current('slug'),
 			'current' => self::current('slug'),
 			'master' => self::master('slug'),
-			'languages' => self::languages(),
+			'is_master' => (self::current('slug') == self::master('slug')),
 		] : NULL;
 		return self::$global;
 	}
 
 	public static function plugin() {
+		// Cached
 		if (isset(self::$plugin)) return self::$plugin;
 		self::$plugin = FALSE;
 		$plugins = implode(',',CorcelOption::get('active_plugins'));
@@ -48,6 +52,7 @@ class L10n extends BaseModel {
 	// ---
 
 	public static function default() {
+		// Cached
 		if (isset(self::$default)) return self::$default;
 		self::$default = CorcelOption::get('polylang')['default_lang'];
 		if (!self::$default) self::$default = CorcelOption::get('WPLANG');
@@ -56,6 +61,7 @@ class L10n extends BaseModel {
 	}
 
 	public static function master($key=NULL) {
+		// Cached
 		if (isset(self::$master)) return ($key) ? self::$master->{$key} ?? '' : self::$master;
 		$default = self::default();
 		foreach (self::languages() AS $language) {
@@ -65,6 +71,7 @@ class L10n extends BaseModel {
 	}
 
 	public static function current($key=NULL) {
+		// Cached
 		if (isset(self::$current)) return ($key) ? self::$current->{$key} ?? '' : self::$current;
 		self::$current = self::master();
 		$slug = ($e = explode('/',trim(strtolower($_SERVER['REQUEST_URI']),'/'))) ? reset($e) : '';
@@ -75,6 +82,7 @@ class L10n extends BaseModel {
 	}
 
 	public static function languages($key=NULL) {
+		// Cached
 		if (isset(self::$languages)) return ($key) ? self::$languages[$key] ?? '' : self::$languages;
 		$result = DB::connection('wordpress')
 			->table('term_taxonomy')
@@ -112,7 +120,22 @@ class L10n extends BaseModel {
 
 	// ---
 
+	public static function switchPostTranslationById($id) {
+		if (!self::plugin()) return NULL;
+		$switch = NULL;
+		$translations = self::getPostTranslationsById($id);
+		$requested = self::current('slug');
+		$language = self::getPostLanguageById($id);
+		if ($language != $requested) {
+			$switch = $translations[$requested] ?? '';
+		}
+		return $switch;
+	}
+
+	// ---
+
 	public static function getPostTranslationsById($id) {
+		// Cached
 		if (isset(self::$cached[$id]['translations'])) return self::$cached[$id]['translations'];
 		if (!self::plugin()) return NULL;
 		$translations = ($result = DB::connection('wordpress')
@@ -127,6 +150,7 @@ class L10n extends BaseModel {
     }
 
 	public static function getPostLanguageById($id) {
+		// Cached
 		if (isset(self::$cached[$id]['language'])) return self::$cached[$id]['language'];
 		if (!self::plugin()) return NULL;
 		$translations = array_flip(self::getPostTranslationsById($id));
@@ -138,22 +162,20 @@ class L10n extends BaseModel {
 	// ---
 
 	public static function getPostL10nById($id) {
-		if (isset(self::$cached[$id]['l10n'])) return self::$cached[$id]['l10n'];
 		if (!self::plugin()) return NULL;
 		$l10n = [];
-		$l10n['requested'] = self::current('slug');
-		$l10n['master'] = self::master('slug');
-		$l10n['language'] = self::getPostLanguageById($id);
-		$l10n['current'] = self::getPostLanguageById($id);
 		$l10n['translations'] = self::getPostTranslationsById($id);
-		$l10n['current_id'] = NULL;
+		$l10n['requested'] = self::current('slug');
+		$l10n['current'] = self::getPostLanguageById($id);
+		$l10n['language'] = $l10n['current'];
+		$l10n['master'] = self::master('slug');
 		$l10n['master_id'] = NULL;
+		$l10n['current_id'] = NULL;
 		foreach ($l10n['translations'] AS $key => $id) {
 			if ($key == $l10n['master']) $l10n['master_id'] = $id;
 			if ($key == $l10n['current']) $l10n['current_id'] = $id;
 		}
 		$l10n['is_master'] = ($l10n['master_id'] == $l10n['current_id']);
-		self::$cached[$id]['l10n'] = $l10n;
 		return $l10n;
 	}
 
