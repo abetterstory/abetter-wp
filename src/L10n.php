@@ -5,17 +5,16 @@ namespace ABetter\WP;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Corcel\Model\Option;
-use Corcel\Model\Post as Corcel;
+use ABetter\WP\Post;
 
-class L10n extends Corcel {
+class L10n extends Model {
 
 	public static $global;
-	public static $post;
 	public static $plugin;
-	public static $localizations;
+
 	public static $master;
 	public static $current;
-	public static $translations;
+	public static $languages;
 
 	// ---
 
@@ -25,51 +24,10 @@ class L10n extends Corcel {
 			'plugin' => $plugin,
 			'current' => self::current('slug'),
 			'master' => self::master('slug'),
-			'list' => self::localizations(),
+			'languages' => self::languages(),
 		] : NULL;
 		return self::$global;
 	}
-
-	public static function parsePost($post,$reset=FALSE) {
-		if (isset(self::$post) && !$reset) return self::$post;
-		self::$post = $post;
-		$l10n = (object) [];
-		$l10n->localization = self::current('slug');
-		$l10n->language = self::current('language');
-		$l10n->master = NULL;
-		$l10n->localizations = [];
-		$trans = []; foreach ($post->taxonomies AS $term) {
-			if ($term->taxonomy == 'post_translations') {
-				$trans = unserialize($term->description);
-			}
-		}
-		foreach ($trans AS $key => $id) {
-			$l10n->localizations[$key] = $id;
-			if ($id == $post->ID) $l10n->localization = $key;
-			if ($id != $post->ID && $key == self::master('slug')) {
-				$l10n->master = self::localizations($key);
-				$l10n->master->ID = $id;
-				$l10n->master->post = Corcel::where('ID', $id)->with('taxonomies')->first();
-			}
-		}
-		$l10n->language = self::localizations($l10n->localization)->language ?? '';
-		$l10n->locale = self::localizations($l10n->localization)->locale ?? '';
-		self::$post->l10n = $l10n;
-		return self::$post;
-	}
-
-	public static function switchCurrent($post) {
-		if (empty($post->l10n->localization)) return NULL;
-		if (($slug = self::current('slug')) && $post->l10n->localization != $slug) {
-			$id = $post->l10n->localizations[$slug] ?? NULL;
-			if ($id && ($switch = Corcel::where('ID', $id)->with('taxonomies')->first())) {
-				return $switch;
-			}
-		}
-		return NULL;
-	}
-
-	// ---
 
 	public static function plugin() {
 		if (isset(self::$plugin)) return self::$plugin;
@@ -77,7 +35,7 @@ class L10n extends Corcel {
 		$plugins = implode(',',Option::get('active_plugins'));
 		if (preg_match('/polylang/',$plugins)) {
 			self::$plugin = 'polylang';
-		} else if (preg_match('sitepress',$plugins)) {
+		} else if (preg_match('/sitepress/',$plugins)) {
 			self::$plugin = 'wpml';
 		}
 		return self::$plugin;
@@ -85,34 +43,11 @@ class L10n extends Corcel {
 
 	// ---
 
-	public static function localizations($key=NULL) {
-		if (isset(self::$localizations)) return ($key) ? self::$localizations[$key] ?? '' : self::$localizations;
-		$result = DB::connection('wordpress')
-			->table('term_taxonomy')
-			->select('term_taxonomy_id AS tid','description AS data')
-			->where('taxonomy', 'language')
-			->get();
-		self::$localizations = [];
-		foreach ($result AS $row) {
-			$term = ($t = DB::connection('wordpress')->table('terms')->where('term_id',$row->tid)->get()) ? reset($t)[0] ?? [] : [];
-			$data = (object) unserialize($row->data);
-			$data->term = $term->term_id;
-			$data->slug = $term->slug;
-			$data->language = strtolower(strtok($data->locale,'_'));
-			$data->name = $term->name;
-			$data->icon = $data->flag_code; unset($data->flag_code);
-			self::$localizations[$data->slug] = $data;
-		}
-		return ($key) ? self::$localizations[$key] ?? '' : self::$localizations;
-    }
-
-	// ---
-
 	public static function master($key=NULL) {
 		if (isset(self::$master)) return ($key) ? self::$master->{$key} ?? '' : self::$master;
 		$option = Option::get('polylang')['default_lang'] ?? '';
-		foreach (self::localizations() AS $localization) {
-			if ($localization->slug == $option) self::$master = $localization;
+		foreach (self::languages() AS $language) {
+			if ($language->slug == $option) self::$master = $language;
 		}
 		return ($key) ? self::$master->{$key} ?? '' : self::$master;
 	}
@@ -121,28 +56,47 @@ class L10n extends Corcel {
 		if (isset(self::$current)) return ($key) ? self::$current->{$key} ?? '' : self::$current;
 		self::$current = self::master();
 		$slug = ($e = explode('/',trim(strtolower($_SERVER['REQUEST_URI']),'/'))) ? reset($e) : '';
-		if (in_array($slug,array_keys(self::localizations()))) {
-			self::$current = self::localizations($slug);
+		if (in_array($slug,array_keys(self::languages()))) {
+			self::$current = self::languages($slug);
 		}
 		return ($key) ? self::$current->{$key} ?? '' : self::$current;
 	}
 
-	// ---
-
-    public static function translations() {
-		if (isset(self::$translations)) return self::$translations;
+	public static function languages($key=NULL) {
+		if (isset(self::$languages)) return ($key) ? self::$languages[$key] ?? '' : self::$languages;
 		$result = DB::connection('wordpress')
 			->table('term_taxonomy')
-			->select("description")
-			->where('taxonomy', 'post_translations')
+			->select('term_taxonomy_id AS tid','description AS data')
+			->where('taxonomy', 'language')
 			->get();
-		self::$translations = [];
-		$master = self::master('slug');
+		self::$languages = [];
 		foreach ($result AS $row) {
-			$data = (object) unserialize($row->description);
-			self::$translations[$data->{$master}] = $data;
+			$term = ($t = DB::connection('wordpress')->table('terms')->where('term_id',$row->tid)->get()) ? reset($t)[0] ?? [] : [];
+			$data = (object) unserialize($row->data);
+			$data->term = $term->term_id;
+			$data->slug = $term->slug;
+			$data->language = strtolower(strtok($data->locale,'_'));
+			$data->name = $term->name;
+			$data->icon = $data->flag_code; unset($data->flag_code);
+			self::$languages[$data->slug] = $data;
 		}
-		return self::$translations;
+		return ($key) ? self::$languages[$key] ?? '' : self::$languages;
     }
+
+	// ---
+
+	public static function switchTranslation($post) {
+		if (empty($post->l10n['language'])) return NULL;
+		if ($post->l10n['current'] != self::current('slug')) {
+			return $post->l10n['translations'][self::current('slug')] ?? NULL;
+		}
+		return NULL;
+	}
+
+	public static function getTranslations($post) {
+		$post = (is_numeric($post)) ? Post::getPost('ID',$post) : $post;
+		$translations = $post->l10n['translations'] ?? [];
+		return $translations;
+	}
 
 }

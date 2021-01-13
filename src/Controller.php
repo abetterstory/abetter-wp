@@ -7,11 +7,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\View;
 use Closure;
-use Corcel\Model\Post;
+use Corcel\Model\Meta\PostMeta;
 use Corcel\Model\Option;
-use ABetter\WP\Poly;
+use ABetter\WP\Post;
+use ABetter\WP\L10n;
 
 class Controller extends BaseController {
+
+	protected $l10n;
 
 	public function handle() {
 		// Prepare
@@ -37,11 +40,10 @@ class Controller extends BaseController {
 				}
 			}
 		}
-		// Language
+		// Localization
 		$this->l10n = L10n::parseGlobal();
-		$this->post = L10n::parsePost($this->post);
-		if ($switch = L10n::switchCurrent($this->post)) {
-			$this->post = L10n::parsePost($switch,TRUE);
+		if ($switch = L10n::switchTranslation($this->post)) {
+			$this->post = ($p = $this->getPostById($switch)) ? $p : $this->post;
 		}
 		// Template
 		$this->template = $this->getPostTemplate($this->post);
@@ -86,29 +88,41 @@ class Controller extends BaseController {
 	public function getPreview($path,$uri) {
 		if ($path !== '/' || !preg_match('/preview/',$uri)) return NULL;
 		$this->preview = (preg_match('/(page_id|p)(\=|\/)([0-9]+)/',$uri,$match)) ? (int) $match[3] : '';
-		return Post::where('ID', $this->preview)->with('taxonomies')->first();
+		return Post::getPost('ID',$this->preview);
 	}
 
 	public function getPost($path) {
 		$this->guid = 'route:'.$path;
-		return Post::where('guid', $this->guid)->with('taxonomies')->first();
+		return Post::getPost('guid',$this->guid);
+	}
+
+	public function getPostById($id) {
+		return Post::getPost('ID',$id);
 	}
 
 	public function getError() {
 		$this->error = 404;
-		$post = Post::where('post_name', 'like', "{$this->error}%")->with('taxonomies')->first();
+		$post = Post::getPost('post_name',"{$this->error}%",'like');
 		$post->error = $this->error;
 		return $post;
 	}
 
 	// ---
 
+	public function postFrontIds() {
+		return L10n::getTranslations(Option::get('page_on_front'));
+	}
+
+	public function postPostsIds() {
+		return L10n::getTranslations(Option::get('page_for_posts'));
+	}
+
 	public function postIsFront($post) {
-		return (($id = Option::get('page_on_front')) && $post->ID == $id) ? TRUE : FALSE;
+		return (in_array($post->ID,$this->postFrontIds())) ? TRUE : FALSE;
 	}
 
 	public function postIsPosts($post) {
-		return (($id = Option::get('page_for_posts')) && $post->ID == $id) ? TRUE : FALSE;
+		return (in_array($post->ID,$this->postPostsIds())) ? TRUE : FALSE;
 	}
 
 	// ---
@@ -117,8 +131,8 @@ class Controller extends BaseController {
 		$template = strtok($post->meta->_wp_page_template ?? 'default', '.');
 		if ($template == 'default') {
 			$template = $post->post_type;
-			if (($id = Option::get('page_on_front')) && $post->ID == $id) $template = 'front';
-			if (($id = Option::get('page_for_posts')) && $post->ID == $id) $template = 'posts';
+			if (in_array($post->ID,$this->postFrontIds())) $template = 'front';
+			if (in_array($post->ID,$this->postPostsIds())) $template = 'posts';
 		}
 		return $template;
 	}
