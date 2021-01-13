@@ -16,6 +16,8 @@ class L10n extends BaseModel {
 	public static $current;
 	public static $languages;
 
+	public static $cached = [];
+
 	// ---
 
 	public static function parseGlobal() {
@@ -101,6 +103,7 @@ class L10n extends BaseModel {
 	// ---
 
 	public static function getPostTranslationsById($id) {
+		if (isset(self::$cached[$id]['translations'])) return self::$cached[$id]['translations'];
 		if (!self::plugin()) return NULL;
 		$translations = ($result = DB::connection('wordpress')
 			->table('term_taxonomy')
@@ -109,19 +112,23 @@ class L10n extends BaseModel {
 			->whereRaw("description LIKE '%:{$id};%'")
 			->first()) ? (array) unserialize(reset($result)) : [];
 		unset($translations['sync']);
+		self::$cached[$id]['translations'] = $translations;
 		return $translations;
     }
 
 	public static function getPostLanguageById($id) {
+		if (isset(self::$cached[$id]['language'])) return self::$cached[$id]['language'];
 		if (!self::plugin()) return NULL;
 		$translations = array_flip(self::getPostTranslationsById($id));
 		$language = $translations[$id] ?? NULL;
+		self::$cached[$id]['language'] = $language;
 		return $language;
 	}
 
 	// ---
 
 	public static function getPostL10nById($id) {
+		if (isset(self::$cached[$id]['l10n'])) return self::$cached[$id]['l10n'];
 		if (!self::plugin()) return NULL;
 		$l10n = [];
 		$l10n['requested'] = self::current('slug');
@@ -136,6 +143,7 @@ class L10n extends BaseModel {
 			if ($key == $l10n['current']) $l10n['current_id'] = $id;
 		}
 		$l10n['is_master'] = ($l10n['master_id'] == $l10n['current_id']);
+		self::$cached[$id]['l10n'] = $l10n;
 		return $l10n;
 	}
 
