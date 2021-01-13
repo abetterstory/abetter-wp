@@ -2,15 +2,15 @@
 
 namespace ABetter\WP;
 
-use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\View;
 use Closure;
-use Corcel\Model\Meta\PostMeta;
 use Corcel\Model\Option;
 use ABetter\WP\Post;
 use ABetter\WP\L10n;
+
+use Illuminate\Routing\Controller as BaseController;
 
 class Controller extends BaseController {
 
@@ -42,7 +42,7 @@ class Controller extends BaseController {
 		}
 		// Localization
 		$this->l10n = L10n::parseGlobal();
-		if ($switch = L10n::switchTranslation($this->post)) {
+		if ($switch = L10n::switchPostTranslation($this->post)) {
 			$this->post = ($p = $this->getPostById($switch)) ? $p : $this->post;
 		}
 		// Template
@@ -110,11 +110,11 @@ class Controller extends BaseController {
 	// ---
 
 	public function postFrontIds() {
-		return L10n::getTranslations(Option::get('page_on_front'));
+		return L10n::getPostTranslationsById(Option::get('page_on_front'));
 	}
 
 	public function postPostsIds() {
-		return L10n::getTranslations(Option::get('page_for_posts'));
+		return L10n::getPostTranslationsById(Option::get('page_for_posts'));
 	}
 
 	public function postIsFront($post) {

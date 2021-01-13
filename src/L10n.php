@@ -2,12 +2,12 @@
 
 namespace ABetter\WP;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Corcel\Model\Option;
-use ABetter\WP\Post;
+use Illuminate\Support\Facades\DB;
 
-class L10n extends Model {
+use Illuminate\Database\Eloquent\Model AS BaseModel;
+
+class L10n extends BaseModel {
 
 	public static $global;
 	public static $plugin;
@@ -85,18 +85,58 @@ class L10n extends Model {
 
 	// ---
 
-	public static function switchTranslation($post) {
-		if (empty($post->l10n['language'])) return NULL;
+	public static function switchPostTranslation($post) {
+		if (!self::plugin() || empty($post->l10n['language'])) return NULL;
 		if ($post->l10n['current'] != self::current('slug')) {
 			return $post->l10n['translations'][self::current('slug')] ?? NULL;
 		}
 		return NULL;
 	}
 
-	public static function getTranslations($post) {
-		$post = (is_numeric($post)) ? Post::getPost('ID',$post) : $post;
-		$translations = $post->l10n['translations'] ?? [];
+	public static function getPostTranslations($post) {
+		if (!self::plugin() || empty($post->l10n['translations'])) return NULL;
+		return $post->l10n['translations'] ?? [];
+	}
+
+	// ---
+
+	public static function getPostTranslationsById($id) {
+		if (!self::plugin()) return NULL;
+		$translations = ($result = DB::connection('wordpress')
+			->table('term_taxonomy')
+			->select('description')
+			->where('taxonomy', 'post_translations')
+			->whereRaw("description LIKE '%:{$id};%'")
+			->first()) ? (array) unserialize(reset($result)) : [];
+		unset($translations['sync']);
 		return $translations;
+    }
+
+	public static function getPostLanguageById($id) {
+		if (!self::plugin()) return NULL;
+		$translations = array_flip(self::getPostTranslationsById($id));
+		$language = $translations[$id] ?? NULL;
+		return $language;
+	}
+
+	// ---
+
+	public static function getPostL10nById($id) {
+		if (!self::plugin()) return NULL;
+		$l10n = [];
+		$l10n['requested'] = self::current('slug');
+		$l10n['master'] = self::master('slug');
+		$l10n['language'] = self::getPostLanguageById($id);
+		$l10n['current'] = self::getPostLanguageById($id);
+		$l10n['translations'] = self::getPostTranslationsById($id);
+		$l10n['current_id'] = NULL;
+		$l10n['master_id'] = NULL;
+		foreach ($l10n['translations'] AS $key => $id) {
+			if ($key == $l10n['master']) $l10n['master_id'] = $id;
+			if ($key == $l10n['current']) $l10n['current_id'] = $id;
+		}
+		$l10n['is_master'] = ($l10n['master_id'] == $l10n['current_id']);
+		return $l10n;
 	}
 
 }
