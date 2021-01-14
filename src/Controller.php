@@ -31,8 +31,9 @@ class Controller extends BaseController {
 		view()->addLocation(base_path().'/vendor/abetter/wp/views/default');
 		$this->location = Config::get('view.paths');
 		// Service
-		if (preg_match('/^\/robots/',$this->uri)) return $this->serviceRobots();
-		if (preg_match('/^\/sitemap/',$this->uri)) return $this->serviceSitemap();
+		if (preg_match('/^\/robots/',$this->uri)) return $this->handleService('robots','text/plain');
+		if (preg_match('/^\/sitemap/',$this->uri)) return $this->handleService('sitemap','text/xml');
+		if (preg_match('/^\/wp\/service/',$this->uri)) return $this->handleService();
 		// Post
 		if (!$this->post = $this->getPreview($this->path,$this->uri)) {
 			if (!$this->post = $this->getPost($this->path)) {
@@ -74,14 +75,30 @@ class Controller extends BaseController {
 
 	// ---
 
-	public function serviceRobots() {
-		$this->service = 'robots';
-		return response()->view('robots')->header('Content-Type','text/plain');
+	public function handleService($view=NULL,$format=NULL,$data=[]) {
+		$this->service = pathinfo($this->uri, PATHINFO_FILENAME);
+		$this->extension = pathinfo($this->uri, PATHINFO_EXTENSION);
+		$this->view = ($view) ? $view : 'services.'.$this->service;
+		$this->format = ($format) ? $format : $this->getFormat($this->extension);
+		if (view()->exists($this->view)) {
+			return response()->view($this->view,array_merge([
+				'service' => $this->service,
+				'format' => $this->format,
+			],$data))->header('Content-Type',$this->format);
+		}
+		if (in_array(strtolower(env('APP_ENV')),['production','stage'])) return abort(404);
+		return "No service found in views.";
 	}
 
-	public function serviceSitemap() {
-		$this->service = 'sitemap';
-		return response()->view('sitemap')->header('Content-Type','text/xml');
+	public function getFormat($ext,$reverse=FALSE) {
+		$formats = [
+			'json' => 'application/json',
+			'xml' => 'text/xml',
+			'txt' => 'text/plain',
+			'html' => 'text/html',
+		];
+		$formats = ($reverse) ? array_reverse($formats) : $formats;
+		return $formats[$ext] ?? reset($formats);
 	}
 
 	// ---
