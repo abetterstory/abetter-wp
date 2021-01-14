@@ -10,6 +10,7 @@
     ],
     "require": {
 		"abetter/core": "^1.0",
+		"aws/aws-sdk-php": "^3.0",
 		"corcel/acf": "^4.0",
 		"jgrossi/corcel": "^5.0"
 	},
