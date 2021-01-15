@@ -69,9 +69,6 @@ class Controller extends BaseController {
 				'post' => $this->post,
 				'l10n' => $this->l10n,
 				'template' => $suggestion,
-				'error' => $GLOBALS['HEADERS']['error'],
-				'expire' => $GLOBALS['HEADERS']['expire'],
-				'redirect' => $GLOBALS['HEADERS']['redirect'],
 			]);
 		}
 		// Fail
@@ -87,6 +84,8 @@ class Controller extends BaseController {
 		$this->view = ($view) ? $view : 'services.'.$this->service;
 		$this->format = ($format) ? $format : Service::format($this->extension);
 		if (view()->exists($this->view)) {
+			$GLOBALS['HEADERS']['format'] = $this->format;
+			$GLOBALS['HEADERS']['expire'] = '5 minutes';
 			return view($this->view)->with(array_merge([
 				'wp' => TRUE,
 				'service' => $this->service,
