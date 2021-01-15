@@ -6,13 +6,9 @@ use Illuminate\Support\Facades\DB;
 use Corcel\Model\Post AS CorcelPost;
 use Corcel\Model\Option AS CorcelOption;
 use ABetter\WP\L10n;
+use ABetter\Core\Service;
 
-use Illuminate\Database\Eloquent\Model AS BaseModel;
-
-class Sitemap extends BaseModel {
-
-	protected $args;
-	protected $opt;
+class Sitemap extends Service {
 
 	public $baseurl;
 	public $domain;
@@ -49,21 +45,13 @@ class Sitemap extends BaseModel {
 
 	// ---
 
-	public function __construct($args=[]) {
-		$this->build($args);
-	}
-
 	public function build() {
-		$this->args = func_get_args();
-		$this->opt = $this->args[0] ?? [];
-		$this->domain = env('APP_CANONICAL', env('APP_URL'));
-		$this->baseurl = $this->domain.'/sitemap';
-		$this->query = trim(parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH),'/');
-		$this->current = (preg_match('/sitemap\_?([^\.]+)\.xml$/',$this->query,$match)) ? $match[1] : '';
+		$this->baseurl = env('APP_CANONICAL',env('APP_URL')).'/sitemap';
+		$this->current = (preg_match('/sitemap\_?([^\.]+)\.xml$/',$this->uri,$match)) ? $match[1] : '';
 		$this->index = ($this->current) ? FALSE : TRUE;
-		$this->whitelist = (!empty($this->opt['types'])) ? $this->opt['types'] : $this->whitelist;
-		$this->blacklist = (!empty($this->opt['blacklist'])) ? $this->opt['blacklist'] : $this->blacklist;
-		$this->hidden = (!empty($this->opt['hidden'])) ? $this->opt['hidden'] : $this->hidden;
+		$this->whitelist = $this->opt['types'] ?? $this->whitelist;
+		$this->blacklist = $this->opt['blacklist'] ?? $this->blacklist;
+		$this->hidden = $this->opt['hidden'] ?? $this->hidden;
 		$this->types = $this->getTypes();
 		$this->posts = $this->getPosts($this->current);
 		$this->items = $this->parsePosts($this->posts);

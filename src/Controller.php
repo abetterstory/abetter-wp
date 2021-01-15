@@ -9,6 +9,7 @@ use Closure;
 use Corcel\Model\Post AS CorcelPost;
 use Corcel\Model\Option AS CorcelOption;
 use ABetter\WP\L10n;
+use ABetter\Core\Service;
 
 use Illuminate\Routing\Controller as BaseController;
 
@@ -19,8 +20,9 @@ class Controller extends BaseController {
 	public function handle() {
 		// Prepare
 		$this->args = func_get_args();
-		$this->uri = $_SERVER['REQUEST_URI'] ?? '';
+		$this->uri = strtok($_SERVER['REQUEST_URI'],'?#');
 		$this->path = preg_replace('/\/\/+/','/','/'.trim($this->args[0]??'','/').'/');
+		$this->query = explode('?',$_SERVER['REQUEST_URI'])[1] ?? '';
 		$this->theme = env('WP_THEME') ?: '';
 		// Locations
 		if ($this->theme) {
@@ -59,13 +61,17 @@ class Controller extends BaseController {
 		}
 		// Response
 		if (!empty($this->view)) {
+			// Pass to Core Middleware
+			$GLOBALS['HEADERS']['error'] = $this->error ?? '';
+			$GLOBALS['HEADERS']['expire'] = $this->post->meta->settings_expire ?? '';
+			$GLOBALS['HEADERS']['redirect'] = $this->post->meta->settings_redirect ?? '';
 			return view($this->view)->with([
 				'post' => $this->post,
 				'l10n' => $this->l10n,
 				'template' => $suggestion,
-				'error' => $this->error ?? '',
-				'expire' => $this->post->meta->settings_expire ?? '',
-				'redirect' => $this->post->meta->settings_redirect ?? '',
+				'error' => $GLOBALS['HEADERS']['error'],
+				'expire' => $GLOBALS['HEADERS']['expire'],
+				'redirect' => $GLOBALS['HEADERS']['redirect'],
 			]);
 		}
 		// Fail
@@ -79,26 +85,16 @@ class Controller extends BaseController {
 		$this->service = pathinfo($this->uri, PATHINFO_FILENAME);
 		$this->extension = pathinfo($this->uri, PATHINFO_EXTENSION);
 		$this->view = ($view) ? $view : 'services.'.$this->service;
-		$this->format = ($format) ? $format : $this->getFormat($this->extension);
+		$this->format = ($format) ? $format : Service::format($this->extension);
 		if (view()->exists($this->view)) {
-			return response()->view($this->view,array_merge([
+			return view($this->view)->with(array_merge([
+				'wp' => TRUE,
 				'service' => $this->service,
 				'format' => $this->format,
-			],$data))->header('Content-Type',$this->format);
+			],$data));
 		}
 		if (in_array(strtolower(env('APP_ENV')),['production','stage'])) return abort(404);
 		return "No service found in views.";
-	}
-
-	public function getFormat($ext,$reverse=FALSE) {
-		$formats = [
-			'json' => 'application/json',
-			'xml' => 'text/xml',
-			'txt' => 'text/plain',
-			'html' => 'text/html',
-		];
-		$formats = ($reverse) ? array_reverse($formats) : $formats;
-		return $formats[$ext] ?? reset($formats);
 	}
 
 	// ---
