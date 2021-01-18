@@ -123,11 +123,11 @@ class Controller extends BaseController {
 	// ---
 
 	public function postFrontIds() {
-		return L10n::getPostTranslationsById(CorcelOption::get('page_on_front'));
+		return (array) L10n::getPostTranslationsById(CorcelOption::get('page_on_front'));
 	}
 
 	public function postPostsIds() {
-		return L10n::getPostTranslationsById(CorcelOption::get('page_for_posts'));
+		return (array) L10n::getPostTranslationsById(CorcelOption::get('page_for_posts'));
 	}
 
 	public function postIsFront($post) {

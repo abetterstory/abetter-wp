@@ -116,7 +116,7 @@ class L10n extends BaseModel {
 	}
 
 	public static function getPostTranslations($post) {
-		if (!self::plugin() || empty($post->l10n['translations'])) return NULL;
+		if (!self::plugin() || empty($post->l10n['translations'])) return [];
 		return $post->l10n['translations'] ?? [];
 	}
 
