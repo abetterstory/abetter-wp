@@ -15,6 +15,8 @@ use Illuminate\Routing\Controller as BaseController;
 
 class Controller extends BaseController {
 
+	public static $post;
+
 	protected $l10n;
 
 	public function handle() {
@@ -37,21 +39,21 @@ class Controller extends BaseController {
 		if (preg_match('/^\/sitemap/',$this->uri)) return $this->handleService('sitemap','text/xml');
 		if (preg_match('/^\/wp\/service/',$this->uri)) return $this->handleService();
 		// Post
-		if (!$this->post = $this->getPreview($this->path,$this->uri)) {
-			if (!$this->post = $this->getPost($this->path)) {
-				if (!$this->post = $this->getError()) {
+		if (!self::$post = $this->getPreview($this->path,$this->uri)) {
+			if (!self::$post = $this->getPost($this->path)) {
+				if (!self::$post = $this->getError()) {
 					return abort(404);
 				}
 			}
 		}
 		// Localization
 		$this->l10n = L10n::parseGlobal();
-		if ($switch = L10n::switchPostTranslationById($this->post->ID)) {
-			$this->post = L10n::getPost('ID',$switch);
+		if ($switch = L10n::switchPostTranslationById(self::$post->ID)) {
+			self::$post = L10n::getPost('ID',$switch);
 		}
 		// Template
-		$this->template = $this->getPostTemplate($this->post);
-		$this->suggestions = $this->getPostTemplateSuggestions($this->post,$this->template);
+		$this->template = $this->getPostTemplate(self::$post);
+		$this->suggestions = $this->getPostTemplateSuggestions(self::$post,$this->template);
 		// View
 		foreach ($this->suggestions AS $suggestion) {
 			if (view()->exists($suggestion)) {
@@ -63,10 +65,10 @@ class Controller extends BaseController {
 		if (!empty($this->view)) {
 			// Pass to Core Middleware
 			$GLOBALS['HEADERS']['error'] = $this->error ?? '';
-			$GLOBALS['HEADERS']['expire'] = $this->post->meta->settings_expire ?? '';
-			$GLOBALS['HEADERS']['redirect'] = $this->post->meta->settings_redirect ?? '';
+			$GLOBALS['HEADERS']['expire'] = self::$post->meta->settings_expire ?? '';
+			$GLOBALS['HEADERS']['redirect'] = self::$post->meta->settings_redirect ?? '';
 			return view($this->view)->with([
-				'post' => $this->post,
+				'post' => self::$post,
 				'l10n' => $this->l10n,
 				'template' => $suggestion,
 			]);
@@ -152,7 +154,7 @@ class Controller extends BaseController {
 
 	public function getPostTemplateSuggestions($post,$template) {
 		$suggestions = [];
-		if (empty($this->post->ID)) return $suggestions;
+		if (empty(self::$post->ID)) return $suggestions;
 		if ($post->post_type == 'post') $suggestions[] = 'page';
 		$suggestions[] = $post->post_type;
 		$suggestions[] = $post->post_type.'--'.$post->post_name;
