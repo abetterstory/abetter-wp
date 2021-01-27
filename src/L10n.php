@@ -139,7 +139,7 @@ class L10n extends BaseModel {
 	public static function getPostTranslationsById($id) {
 		// Cached
 		if (isset(self::$cached[$id]['translations'])) return self::$cached[$id]['translations'];
-		if (!self::plugin()) return NULL;
+		if (!self::plugin()) return [$id];
 		$translations = ($result = DB::connection('wordpress')
 			->table('term_taxonomy')
 			->select('description')
