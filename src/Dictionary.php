@@ -16,6 +16,11 @@ class Dictionary extends BaseModel {
 
 		$translations = $post->l10n['translations'] ?? [];
 
+		// No translations
+		if (empty($translations) && ($try = $post->post_content ?? NULL)) {
+			return $try;
+		}
+
 		// Try current
 		if ($try = L10n::getPost('ID',$translations[$current]??NULL)->post_content ?? NULL) {
 			return $try;
