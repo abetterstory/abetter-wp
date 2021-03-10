@@ -111,7 +111,8 @@ class Sitemap extends Service {
 			$item->lastmod = date('Y-m-d\TH:i:sP',$item->timestamp);
 			$item->changefreq = ($acf = $post->acf->settings_changefreq) ? $acf : (($item->front) ? "daily" : "weekly");
 			$item->priority = ($acf = $post->acf->settings_priority) ? $acf : (($item->front) ? "0.8" : "0.5");
-			$items[] = $item;
+			$item->exclude = ($acf = $post->acf->settings_exclude) ? TRUE : FALSE;
+			if (!$item->exclude) $items[] = $item;
 		}
 		return $items;
 	}
