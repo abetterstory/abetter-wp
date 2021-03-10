@@ -184,7 +184,7 @@ class L10n extends BaseModel {
 	// ---
 
 	public static function getPost($key,$val,$operator='=') {
-		if ($post = CorcelPost::where($key,$operator,$val)->with('meta')->first()) {
+		if ($post = CorcelPost::where($key,$operator,$val)->where('post_status','publish')->with('meta')->first()) {
 			$post->l10n = self::getPostL10nById($post->ID);
 		}
 		return $post;
