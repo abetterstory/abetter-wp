@@ -9,3 +9,11 @@ if (!function_exists('_dictionary')) {
 	}
 
 }
+
+if (!function_exists('__d')) {
+
+	function __d() {
+		return \ABetter\WP\Dictionary::get(...func_get_args());
+	}
+
+}
