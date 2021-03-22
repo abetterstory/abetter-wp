@@ -38,6 +38,10 @@ class Controller extends BaseController {
 		if (preg_match('/^\/robots/',$this->uri)) return $this->handleService('robots','text/plain');
 		if (preg_match('/^\/sitemap/',$this->uri)) return $this->handleService('sitemap','text/xml');
 		if (preg_match('/^\/wp\/service/',$this->uri)) return $this->handleService();
+		// Test
+		if (!$test = \Schema::connection('wordpress')->hasTable('posts')) {
+			return abort(404);
+		}
 		// Post
 		if (!self::$post = $this->getPreview($this->path,$this->uri)) {
 			if (!self::$post = $this->getPost($this->path)) {
@@ -74,7 +78,7 @@ class Controller extends BaseController {
 			]);
 		}
 		// Fail
-		if (in_array(strtolower(env('APP_ENV')),['production','stage'])) return abort(404);
+		if (in_array(strtolower(env('APP_ENV')),['production','stage','staging'])) return abort(404);
 		return "No template found in views.";
     }
 
@@ -94,7 +98,7 @@ class Controller extends BaseController {
 				'format' => $this->format,
 			],$data));
 		}
-		if (in_array(strtolower(env('APP_ENV')),['production','stage'])) return abort(404);
+		if (in_array(strtolower(env('APP_ENV')),['production','stage','staging'])) return abort(404);
 		return "No service found in views.";
 	}
 
